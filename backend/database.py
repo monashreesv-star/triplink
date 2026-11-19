@@ -1,7 +1,21 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "triplink.db")
+ORIG_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "triplink.db")
+
+# Detect Vercel / serverless environment (where repository folder is read-only)
+if os.environ.get("VERCEL") or not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK):
+    import shutil
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    DB_PATH = os.path.join(temp_dir, "triplink.db")
+    if not os.path.exists(DB_PATH) and os.path.exists(ORIG_DB_PATH):
+        try:
+            shutil.copy2(ORIG_DB_PATH, DB_PATH)
+        except Exception:
+            pass
+else:
+    DB_PATH = ORIG_DB_PATH
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=15.0)
