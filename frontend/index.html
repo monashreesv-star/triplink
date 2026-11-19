@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TripLink for TBO — Smart Travel Support & Operations</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="TripLink">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulseAlert {
+      0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+      50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.8); }
+    }
+    .at-risk-glow { animation: pulseAlert 2s infinite ease-in-out; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-track { background: #0f172a; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-200">
+
+  <!-- ================= FLOATING TOAST NOTIFICATION ================= -->
+  <div id="toastNotification" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-100px] opacity-0 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold bg-emerald-600 text-white">
+    <i data-lucide="check-circle" class="w-4 h-4"></i>
+    <span id="toastMessage">Action completed successfully</span>
+  </div>
+
+  <!-- ================= TOP HEADER (LIGHT THEME) ================= -->
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-5 py-2.5 flex items-center justify-between shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="h-9 w-9 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20">
+        <i data-lucide="compass" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-base font-black tracking-tight text-slate-900 dark:text-white">TripLink</span>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-500/30">TBO Support</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Relationships, context & travel urgency first — isolated tickets second</p>
+      </div>
+    </div>
+
+    <!-- Judge Demo Quick Walkthrough Pills -->
+    <div class="hidden lg:flex items-center bg-slate-50 dark:bg-slate-800/90 rounded-lg border border-slate-200 dark:border-slate-700 p-1 text-xs">
+      <span class="px-2 font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 text-[11px]">
+        <i data-lucide="play-circle" class="w-3.5 h-3.5 text-blue-600"></i> Demo Journeys:
+      </span>
+      <button onclick="runDemoTour('linkage')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm border border-transparent hover:border-slate-200 transition font-medium text-[11px]" title="Same TBOH, 3 contacts connected">1: Linkage</button>
+      <button onclick="runDemoTour('routing')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm border border-transparent hover:border-slate-200 transition font-medium text-[11px]" title="Region + Priority + Availability Routing">2: Routing</button>
+      <button onclick="runDemoTour('sla')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm border border-transparent hover:border-slate-200 transition font-medium text-[11px]" title="Dynamic Check-In / LCD SLA Compression">3: Travel SLA</button>
+      <button onclick="runDemoTour('supplier')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm border border-transparent hover:border-slate-200 transition font-medium text-[11px]" title="Supplier Thread Survives Transfer">4: Supplier Thread</button>
+      <button onclick="runDemoTour('escalate')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm border border-transparent hover:border-slate-200 transition font-medium text-[11px]" title="Escalation Manager Priority Queue">5: Escalate</button>
+      <button onclick="showMainTab('dashboard')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold text-[11px] transition" title="Stats & Recurring Issues">6: Dashboard</button>
+    </div>
+
+    <!-- Header Actions (Role Switcher, Theme Toggle, New Ticket) -->
+    <div class="flex items-center gap-3">
+      <!-- Role Switcher -->
+      <div class="relative">
+        <label class="block text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Active Role</label>
+        <select id="roleSelect" onchange="switchRole(this.value)" class="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+          <option value="AGY-101">👤 Rajesh Kumar (Agency - Apex Travels)</option>
+          <option value="AGT-201" selected>🎧 Priya Sharma (Support Agent - APAC)</option>
+          <option value="AGT-901">⚡ Vikram Malhotra (Escalation Mgr)</option>
+          <option value="AGT-902">📊 Neha Gupta (Ops Lead / Governance)</option>
+        </select>
+      </div>
+
+      <!-- Theme Switcher (Light / Dark) -->
+      <button onclick="toggleDarkMode()" id="themeToggleBtn" title="Toggle Light / Dark mode" class="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 transition text-xs flex items-center gap-1">
+        <i data-lucide="sun" id="themeIcon" class="w-4 h-4 text-amber-500"></i>
+      </button>
+
+      <!-- New Ticket Button -->
+      <button onclick="openNewTicketModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-1.5 rounded-md flex items-center gap-1.5 shadow-sm shadow-blue-500/20 transition">
+        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <span>Book / New Ticket</span>
+      </button>
+
+      <!-- Reset Demo Data -->
+      <button onclick="resetDemoData()" title="Reset demo seed data to pristine state" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 p-1.5 rounded-md transition text-xs flex items-center gap-1">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        <span class="hidden sm:inline">Reset</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= SUB-HEADER KPI STRIP ================= -->
+  <div class="bg-white dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-5 py-1.5 flex items-center justify-between text-xs">
+    <div class="flex items-center gap-2">
+      <span id="roleBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+        🎧 Support Agent View
+      </span>
+      <span id="roleExplanation" class="text-slate-500 dark:text-slate-400 text-[11px]">
+        Full support queue, context-linked TBOH cases, supplier threads & travel-aware SLAs.
+      </span>
+    </div>
+    <div class="hidden md:flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
+      <span>Total: <strong id="kpiTotal" class="text-slate-900 dark:text-white">--</strong></span>
+      <span>Triage (Unassigned): <strong id="kpiTriage" class="text-amber-600 dark:text-amber-400 font-bold">--</strong></span>
+      <span>At-Risk SLAs: <strong id="kpiAtRisk" class="text-orange-600 dark:text-orange-400 font-bold">--</strong></span>
+      <span>Breached: <strong id="kpiBreached" class="text-red-600 dark:text-red-400 font-bold">--</strong></span>
+      <span>Escalations: <strong id="kpiEscalated" class="text-purple-600 dark:text-purple-400 font-bold">--</strong></span>
+      <span>SLA Compliance: <strong id="kpiCompliance" class="text-emerald-600 dark:text-emerald-400 font-bold">--%</strong></span>
+    </div>
+  </div>
+
+  <!-- ================= MAIN LAYOUT ================= -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="w-60 bg-white dark:bg-slate-900/60 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between flex-shrink-0">
+      <div class="p-3 space-y-4 overflow-y-auto">
+        <!-- Queues -->
+        <div>
+          <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider px-2 mb-1.5">Support Queues</div>
+          <nav class="space-y-0.5">
+            <button onclick="setQueueView('all')" id="nav-all" class="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <span class="flex items-center gap-2">
+                <i data-lucide="inbox" class="w-4 h-4 text-slate-500"></i> All Tickets
+              </span>
+              <span id="badge-all" class="text-[10px] font-mono px-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">--</span>
+            </button>
+
+            <button onclick="setQueueView('triage')" id="nav-triage" class="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <span class="flex items-center gap-2">
+                <i data-lucide="user-x" class="w-4 h-4 text-amber-500"></i> Triage (Unassigned)
+              </span>
+              <span id="badge-triage" class="text-[10px] font-mono px-1.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 font-bold">--</span>
+            </button>
+
+            <button onclick="setQueueView('my_queue')" id="nav-my_queue" class="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <span class="flex items-center gap-2">
+                <i data-lucide="user-check" class="w-4 h-4 text-sky-600"></i> My Assigned Queue
+              </span>
+              <span id="badge-my_queue" class="text-[10px] font-mono px-1.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300 font-bold">--</span>
+            </button>
+
+            <button onclick="setQueueView('at_risk')" id="nav-at_risk" class="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <span class="flex items-center gap-2">
+                <i data-lucide="alarm-clock" class="w-4 h-4 text-red-500"></i> Travel Urgency / At-Risk
+              </span>
+              <span id="badge-at_risk" class="text-[10px] font-mono px-1.5 rounded bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 font-bold">--</span>
+            </button>
+
+            <button onclick="setQueueView('escalation')" id="nav-escalation" class="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <span class="flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-purple-600"></i> Escalation Queue
+              </span>
+              <span id="badge-escalation" class="text-[10px] font-mono px-1.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 font-bold">--</span>
+            </button>
+
+            <button onclick="setQueueView('tboh_demo')" id="nav-tboh_demo" class="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition">
+              <span class="flex items-center gap-2">
+                <i data-lucide="link" class="w-4 h-4 text-blue-600"></i> Connected Cases Demo
+              </span>
+              <span class="text-[10px] font-mono px-1.5 rounded bg-blue-200/80 dark:bg-blue-500/30 text-blue-800 dark:text-blue-200 font-bold">TBOH-90241</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Dashboard Link (Requirement 7) -->
+        <div>
+          <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider px-2 mb-1.5">Intelligence</div>
+          <button onclick="showMainTab('dashboard')" id="nav-dashboard" class="w-full text-left flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+            <span class="flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-600"></i> Stats & Recurring Issues
+            </span>
+            <span class="text-[10px] px-1.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 font-bold">Req 7</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Agent Capacity Indicator -->
+      <div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 text-xs">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Active Agent Workload</span>
+          <span class="text-emerald-600 dark:text-emerald-400 font-bold font-mono text-[11px]">2 / 5 tickets</span>
+        </div>
+        <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div class="bg-gradient-to-r from-emerald-500 to-blue-500 h-1.5 rounded-full" style="width: 40%"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950">
+
+      <!-- ================= TAB 1: WORKBENCH (TICKETS & LINKAGE) ================= -->
+      <div id="tab-workbench" class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Filter & Search Bar (Light Theme) -->
+        <div class="p-3 bg-white dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+          <div class="relative flex-1 min-w-[240px] max-w-md">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            <input type="text" id="searchInput" oninput="debounceSearch()" placeholder="Search by TBOH (e.g. TBOH-90241), Agency, Title, ID..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-9 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap text-xs">
+            <!-- Priority Filter -->
+            <select id="filterPriority" onchange="loadTickets()" class="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-700 dark:text-slate-300 text-xs font-medium">
+              <option value="All">All Priorities</option>
+              <option value="P1-Urgent">P1 Urgent</option>
+              <option value="P2-High">P2 High</option>
+              <option value="P3-Medium">P3 Medium</option>
+              <option value="P4-Low">P4 Low</option>
+            </select>
+
+            <!-- SLA Filter -->
+            <select id="filterSLA" onchange="loadTickets()" class="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-700 dark:text-slate-300 text-xs font-medium">
+              <option value="All">All SLAs</option>
+              <option value="At-Risk">⚠️ At-Risk Only</option>
+              <option value="Breached">🚨 Breached Only</option>
+              <option value="Healthy">Healthy</option>
+            </select>
+
+            <!-- Status Filter -->
+            <select id="filterStatus" onchange="loadTickets()" class="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-700 dark:text-slate-300 text-xs font-medium">
+              <option value="All">All Statuses</option>
+              <option value="New">New</option>
+              <option value="Open">Open</option>
+              <option value="Pending">Pending</option>
+              <option value="Escalated">Escalated</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Master-Detail Split Screen -->
+        <div class="flex-1 flex overflow-hidden">
+          
+          <!-- LEFT: Ticket List -->
+          <div class="w-full lg:w-5/12 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-950 overflow-hidden">
+            <div class="p-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span id="ticketCountLabel" class="font-medium">Showing cases...</span>
+              <span class="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition" onclick="loadTickets()">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Sync
+              </span>
+            </div>
+            
+            <div id="ticketListContainer" class="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+              <div class="p-8 text-center text-slate-400 text-xs">Loading operational tickets...</div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Ticket Context Workbench -->
+          <div id="ticketDetailPanel" class="hidden lg:flex flex-1 flex-col bg-slate-50 dark:bg-slate-900/20 overflow-y-auto">
+            <div id="emptyTicketDetail" class="flex-1 flex flex-col items-center justify-center p-8 text-slate-500 text-center">
+              <i data-lucide="compass" class="w-12 h-12 text-slate-300 dark:text-slate-700 mb-3"></i>
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-400">Select a case from the queue</p>
+              <p class="text-xs text-slate-500 max-w-sm mt-1">Review linked cases by TBOH, travel urgency SLAs, supplier conversations, and smart routing reasons.</p>
+              <button onclick="runDemoTour('linkage')" class="mt-4 px-3 py-1.5 rounded-md bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 text-xs font-semibold hover:bg-blue-100 transition shadow-xs">
+                ⚡ Walk through Demo Journey 1 (Context Linkage)
+              </button>
+            </div>
+
+            <div id="activeTicketDetail" class="hidden flex-1 flex flex-col overflow-hidden">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 2: RECURRING ISSUES & STATS DASHBOARD (REQ 7) ================= -->
+      <div id="tab-dashboard" class="hidden flex-1 flex flex-col overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950">
+        <div class="max-w-6xl mx-auto w-full space-y-6">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-xl font-black text-slate-900 dark:text-white">TripLink Operations & Recurring Issues Dashboard</h1>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-bold">Requirement 7</span>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Recurring operational frictions analyzed across B2B travel bookings to drive proactive resolutions.</p>
+            </div>
+            <button onclick="showMainTab('workbench')" class="bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-700 shadow-xs font-semibold">
+              ← Return to Workbench
+            </button>
+          </div>
+
+          <!-- Summary Metric Cards (Light Theme) -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Total Support Cases</span>
+              <div class="text-2xl font-black text-slate-900 dark:text-white mt-1" id="dashTotal">--</div>
+              <p class="text-[11px] text-slate-400 mt-1">Indexed by TBOH and agency</p>
+            </div>
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">SLA Compliance Rate</span>
+              <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1" id="dashCompliance">--%</div>
+              <p class="text-[11px] text-slate-400 mt-1">Travel proximity adjusted</p>
+            </div>
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">At-Risk Travel Deadlines</span>
+              <div class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1" id="dashAtRisk">--</div>
+              <p class="text-[11px] text-slate-400 mt-1">Imminent check-in / LCD &lt;24h</p>
+            </div>
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Escalation Manager Cases</span>
+              <div class="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1" id="dashEscalated">--</div>
+              <p class="text-[11px] text-slate-400 mt-1">Commercial overrides & disputes</p>
+            </div>
+          </div>
+
+          <!-- Recurring Issues Breakdown -->
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900">
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-blue-600"></i>
+                Recurring Travel Issues & SLA Breach Correlation
+              </h3>
+              <span class="text-xs text-slate-500">Auto-aggregated by category</span>
+            </div>
+            <div id="recurringIssuesContainer" class="divide-y divide-slate-100 dark:divide-slate-800">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================= MODAL: CREATE / BOOK TICKET (LIGHT THEME) ================= -->
+  <div id="newTicketModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-850">
+        <div class="flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-blue-600"></i>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Create / Book Travel Support Case</h3>
+        </div>
+        <button onclick="closeNewTicketModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <form onsubmit="submitNewTicket(event)" id="newTicketForm" class="p-5 space-y-3.5 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Agency Requester *</label>
+            <select id="createAgency" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-slate-200 font-medium">
+              <option value="AGY-101">Apex Travels India (Platinum VIP · APAC)</option>
+              <option value="AGY-102">Global Voyagers UK (Gold Corporate · EMEA)</option>
+              <option value="AGY-103">Zenith Holidays UAE (Diamond Premium · Mid-East)</option>
+              <option value="AGY-104">Pacific Journeys SG (Silver Standard · APAC)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Booking Ref (TBOH) *</label>
+            <input type="text" id="createTboh" required placeholder="e.g. TBOH-90241" value="TBOH-90241" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-slate-200 font-mono font-bold">
+            <span class="text-[10px] text-blue-600 dark:text-blue-400">Tip: TBOH-90241 auto-links prior cases!</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Case Title *</label>
+          <input type="text" id="createTitle" required placeholder="e.g. Refund follow-up for cancelled Dubai flight" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-slate-200">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Issue Details & Description</label>
+          <textarea id="createDescription" rows="3" placeholder="Provide passenger names, hotel confirmation, flight voucher details..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-slate-200"></textarea>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Issue Category *</label>
+            <select id="createCategory" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-slate-800 dark:text-slate-200 font-medium">
+              <option value="Refund Delay">Refund Delay</option>
+              <option value="Inventory Sync Mismatch">Inventory Sync Mismatch</option>
+              <option value="Late Cancellation Waiver">Late Cancellation Waiver</option>
+              <option value="Date Change">Date Change</option>
+              <option value="Room Upgrade Request">Room Upgrade Request</option>
+              <option value="Payment & Invoicing Discrepancy">Payment Discrepancy</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Passenger Check-In</label>
+            <input type="datetime-local" id="createCheckIn" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-slate-800 dark:text-slate-200">
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Last Cancel Date (LCD)</label>
+            <input type="datetime-local" id="createLCD" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-slate-800 dark:text-slate-200">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Priority Level</label>
+          <div class="grid grid-cols-4 gap-2">
+            <label class="border border-slate-200 dark:border-slate-700 rounded p-1.5 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1">
+              <input type="radio" name="createPriority" value="P1-Urgent" class="text-red-600">
+              <span class="text-red-600 font-bold">P1 Urgent</span>
+            </label>
+            <label class="border border-slate-200 dark:border-slate-700 rounded p-1.5 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1">
+              <input type="radio" name="createPriority" value="P2-High" checked class="text-amber-600">
+              <span class="text-amber-600 font-bold">P2 High</span>
+            </label>
+            <label class="border border-slate-200 dark:border-slate-700 rounded p-1.5 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1">
+              <input type="radio" name="createPriority" value="P3-Medium" class="text-sky-600">
+              <span class="text-sky-600 font-medium">P3 Medium</span>
+            </label>
+            <label class="border border-slate-200 dark:border-slate-700 rounded p-1.5 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1">
+              <input type="radio" name="createPriority" value="P4-Low" class="text-slate-600">
+              <span class="text-slate-600 font-medium">P4 Low</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
+          <button type="button" onclick="closeNewTicketModal()" class="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">Cancel</button>
+          <button type="submit" id="createSubmitBtn" class="px-4 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-sm transition">
+            <span>Create & Auto-Assign Case</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ESCALATE TO ESCALATION MANAGER (LIGHT THEME) ================= -->
+  <div id="escalateModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-500/40 rounded-xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="px-5 py-3 border-b border-purple-100 dark:border-purple-500/30 flex items-center justify-between bg-purple-50 dark:bg-purple-950/40">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-5 h-5 text-purple-600"></i>
+          <h3 class="text-sm font-bold text-purple-950 dark:text-white">Escalate to Escalation Manager</h3>
+        </div>
+        <button onclick="closeEscalateModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <form onsubmit="submitEscalation(event)" class="p-5 space-y-3.5 text-xs">
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+          This is a <strong class="text-purple-700 dark:text-purple-300">first-class escalation action</strong> (Requirement 5). It immediately changes ownership directly to Escalation Manager Vikram Malhotra and logs an urgent timeline event.
+        </p>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Escalation Manager</label>
+          <select id="escalateToSelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-slate-200 font-semibold">
+            <option value="AGT-901">⚡ Vikram Malhotra (Global Lead Escalation Manager)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Mandatory Escalation Reason *</label>
+          <textarea id="escalateReason" required rows="3" placeholder="Explain the commercial impasse or supplier breakdown (e.g. Hotel refusing contracted voucher rate, imminent LCD penalty past waiver window)..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-slate-200"></textarea>
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
+          <button type="button" onclick="closeEscalateModal()" class="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">Cancel</button>
+          <button type="submit" id="escalateSubmitBtn" class="px-4 py-1.5 rounded-md bg-purple-600 hover:bg-purple-700 text-white font-bold flex items-center gap-1.5 shadow-sm transition">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+            <span>Confirm Escalation</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
+  <script>
+    const state = {
+      currentUser: null,
+      users: [],
+      currentQueueView: 'all',
+      selectedTicketId: null,
+      tickets: [],
+      agents: [],
+      composerTab: 'public',
+      searchTimer: null
+    };
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      const toastMsg = document.getElementById('toastMessage');
+      toastMsg.textContent = msg;
+      toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-[-100px]', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const icon = document.getElementById('themeIcon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+        icon.setAttribute('data-lucide', 'sun');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        icon.setAttribute('data-lucide', 'moon');
+      }
+      lucide.createIcons();
+    }
+
+    async function init() {
+      // Check saved theme
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      lucide.createIcons();
+      await loadUsers();
+      await loadAgents();
+      await loadStats();
+      await loadTickets();
+      // Auto-select TKT-1003 by default to showcase connected cases
+      setTimeout(() => { selectTicket('TKT-1003'); }, 200);
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        state.users = data.users || [];
+        state.currentUser = state.users[1] || { name: 'Priya Sharma', role: 'Support Agent', id: 'AGT-201' };
+      } catch (e) {
+        state.currentUser = { name: 'Priya Sharma', role: 'Support Agent', id: 'AGT-201' };
+      }
+    }
+
+    async function loadAgents() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        state.agents = data.agents || [];
+      } catch (e) {
+        state.agents = [];
+      }
+    }
+
+    function switchRole(userId) {
+      const user = state.users.find(u => u.id === userId);
+      if (!user) return;
+      state.currentUser = user;
+
+      const badge = document.getElementById('roleBadge');
+      const exp = document.getElementById('roleExplanation');
+
+      if (user.role === 'Agency Requester') {
+        badge.textContent = `👤 ${user.label}`;
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20';
+        exp.textContent = 'Agency view: Restricted strictly to Apex Travels India cases. No internal notes.';
+        state.currentQueueView = 'all';
+      } else if (user.role === 'Support Agent') {
+        badge.textContent = `🎧 ${user.label}`;
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20';
+        exp.textContent = 'Support Agent view: Full operational queues, context linkage, supplier threads.';
+      } else if (user.role === 'Escalation Manager') {
+        badge.textContent = `⚡ ${user.label}`;
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20';
+        exp.textContent = 'Escalation Manager view: Dedicated high-priority escalation queue and commercial overrides.';
+        state.currentQueueView = 'escalation';
+      } else if (user.role === 'Ops Lead') {
+        badge.textContent = `📊 ${user.label}`;
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20';
+        exp.textContent = 'Ops Lead view: Overall queue health, recurring friction themes, SLA compliance.';
+      }
+
+      loadTickets();
+      loadStats();
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        document.getElementById('kpiTotal').textContent = data.total;
+        document.getElementById('kpiTriage').textContent = data.unassigned;
+        document.getElementById('kpiAtRisk').textContent = data.at_risk;
+        document.getElementById('kpiBreached').textContent = data.breached;
+        document.getElementById('kpiEscalated').textContent = data.escalated;
+        document.getElementById('kpiCompliance').textContent = `${data.compliance_rate}%`;
+
+        document.getElementById('badge-all').textContent = data.total;
+        document.getElementById('badge-triage').textContent = data.unassigned;
+        document.getElementById('badge-at_risk').textContent = data.at_risk + data.breached;
+        document.getElementById('badge-escalation').textContent = data.escalated;
+
+        document.getElementById('dashTotal').textContent = data.total;
+        document.getElementById('dashCompliance').textContent = `${data.compliance_rate}%`;
+        document.getElementById('dashAtRisk').textContent = data.at_risk;
+        document.getElementById('dashEscalated').textContent = data.escalated;
+      } catch (e) {
+        console.error("Stats load failed:", e);
+      }
+    }
+
+    async function loadTickets() {
+      const priority = document.getElementById('filterPriority')?.value || 'All';
+      const status = document.getElementById('filterStatus')?.value || 'All';
+      const sla_status = document.getElementById('filterSLA')?.value || 'All';
+      const search = document.getElementById('searchInput')?.value || '';
+
+      let url = `/api/tickets?view=${state.currentQueueView}&priority=${priority}&status=${status}&sla_status=${sla_status}&search=${encodeURIComponent(search)}`;
+
+      if (state.currentUser && state.currentUser.role === 'Agency Requester') {
+        url += `&agency_id=${state.currentUser.agency_id}`;
+      } else if (state.currentQueueView === 'my_queue' && state.currentUser) {
+        url += `&agent_id=${state.currentUser.id}`;
+      }
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        state.tickets = data.tickets || [];
+        renderTicketList();
+        document.getElementById('ticketCountLabel').textContent = `Showing ${state.tickets.length} cases (${state.currentQueueView})`;
+      } catch (e) {
+        console.error("Tickets load failed:", e);
+      }
+    }
+
+    function renderTicketList() {
+      const container = document.getElementById('ticketListContainer');
+      if (!state.tickets || state.tickets.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">No cases match the selected filters.</div>`;
+        return;
+      }
+
+      container.innerHTML = state.tickets.map(t => {
+        const isSelected = t.id === state.selectedTicketId;
+        const priorityColors = {
+          'P1-Urgent': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30 font-bold',
+          'P2-High': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30 font-bold',
+          'P3-Medium': 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/20 dark:text-sky-400 dark:border-sky-500/30',
+          'P4-Low': 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/30',
+        };
+        const priorityBadge = priorityColors[t.priority] || priorityColors['P3-Medium'];
+
+        let slaBadgeClass = 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+        if (t.sla_status === 'Breached') {
+          slaBadgeClass = 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-500/50 font-bold';
+        } else if (t.sla_status === 'At-Risk') {
+          slaBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-500/50 at-risk-glow font-bold';
+        } else if (t.sla_status === 'Healthy') {
+          slaBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-500/30 font-medium';
+        }
+
+        return `
+          <div onclick="selectTicket('${t.id}')" class="p-3 cursor-pointer transition ${isSelected ? 'bg-blue-50/80 dark:bg-slate-850 border-l-4 border-blue-600' : 'hover:bg-slate-50 dark:hover:bg-slate-900/60'}">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">${t.id}</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-500/30 font-bold">${t.tboh}</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded border ${priorityBadge}">${t.priority}</span>
+              </div>
+              <span class="text-[10px] px-1.5 py-0.2 rounded border ${slaBadgeClass}">
+                <i data-lucide="clock" class="w-3 h-3 inline-block -mt-0.5"></i> ${t.sla_remaining_str || t.sla_status}
+              </span>
+            </div>
+
+            <h4 class="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 mb-1">${t.title}</h4>
+
+            ${t.travel_modifier_applied ? `
+              <div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 mb-1">
+                ${t.travel_modifier_applied}
+              </div>
+            ` : ''}
+
+            <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <span class="truncate max-w-[150px] font-medium">${t.agency_name || 'Agency'}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-400">${t.region}</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">${t.assigned_name || 'Unassigned'}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    async function selectTicket(ticketId) {
+      if (!ticketId) return;
+      state.selectedTicketId = ticketId;
+      renderTicketList();
+
+      document.getElementById('emptyTicketDetail').classList.add('hidden');
+      const detailContainer = document.getElementById('activeTicketDetail');
+      detailContainer.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/api/tickets/${ticketId}`);
+        const data = await res.json();
+        renderTicketDetail(data);
+      } catch (e) {
+        console.error("Ticket detail load failed:", e);
+      }
+    }
+
+    function renderTicketDetail(data) {
+      const t = data.ticket;
+      const linked = data.linked_tickets || [];
+      const messages = data.messages || [];
+      const supplierRecipients = data.supplier_recipients || [];
+      const timeline = data.timeline || [];
+
+      const isAgencyRequester = state.currentUser && state.currentUser.role === 'Agency Requester';
+
+      const container = document.getElementById('activeTicketDetail');
+      container.innerHTML = `
+        <!-- WORKBENCH HEADER (LIGHT THEME) -->
+        <div class="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-3 shadow-xs">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-sm font-black font-mono text-slate-900 dark:text-white">${t.id}</span>
+              <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-500/40">${t.tboh}</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">${t.category}</span>
+              <span class="text-xs px-2 py-0.5 rounded ${t.priority === 'P1-Urgent' ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/20 dark:text-red-400 font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400'} font-bold">${t.priority}</span>
+              <span class="text-xs px-2 py-0.5 rounded ${t.sla_status === 'Breached' ? 'bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-300 font-bold' : (t.sla_status === 'At-Risk' ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-300 font-bold at-risk-glow' : 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 font-medium')}">
+                SLA: ${t.sla_remaining_str} (${t.sla_status})
+              </span>
+            </div>
+
+            <!-- Actions: Escalate, Transfer, Status -->
+            <div class="flex items-center gap-2">
+              <!-- Requirement 5: Escalate to Escalation Manager Button (ALWAYS ACCESSIBLE) -->
+              <button onclick="openEscalateModal('${t.id}')" class="px-3 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                <span>Escalate to EM</span>
+              </button>
+
+              ${!isAgencyRequester ? `
+                <!-- Requirement 3: Transfer dropdown -->
+                <select onchange="reassignTicket('${t.id}', this.value)" class="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs px-2 py-1 text-slate-800 dark:text-slate-200 font-medium">
+                  <option value="">Transfer Agent...</option>
+                  ${state.agents.map(ag => `<option value="${ag.id}" ${ag.id === t.assigned_agent_id ? 'selected' : ''}>Transfer: ${ag.name} (${ag.region})</option>`).join('')}
+                </select>
+              ` : ''}
+
+              <!-- Status Dropdown -->
+              <select onchange="changeStatus('${t.id}', this.value)" class="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs px-2 py-1 text-slate-800 dark:text-slate-200 font-bold">
+                ${['New', 'Open', 'Pending', 'Escalated', 'Resolved', 'Closed'].map(st => `<option value="${st}" ${st === t.status ? 'selected' : ''}>Status: ${st}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">${t.title}</h2>
+
+          <!-- ESCALATION REASON BANNER IF ESCALATED -->
+          ${t.status === 'Escalated' && t.escalation_reason ? `
+            <div class="p-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/40 flex items-start gap-2 text-xs">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0"></i>
+              <div>
+                <strong class="text-purple-800 dark:text-purple-300">Case Escalated to Lead Escalation Manager:</strong>
+                <span class="text-slate-700 dark:text-slate-300 ml-1">${t.escalation_reason}</span>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- ROUTING REASON AUDIT BANNER (Requirement 3) -->
+          ${t.routing_reason && !isAgencyRequester ? `
+            <div class="p-2 rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-start gap-2 text-[11px]">
+              <i data-lucide="compass" class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0"></i>
+              <div>
+                <span class="font-bold text-blue-700 dark:text-blue-300">Intelligent Routing Reason:</span>
+                <span class="text-slate-600 dark:text-slate-300 ml-1">${t.routing_reason}</span>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- SPLIT 2-COLUMN: CONVERSATION STREAM + CONTEXT & LINKED CASES -->
+        <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          
+          <!-- LEFT: Conversations & Messages Stream (Requirement 6) -->
+          <div class="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden">
+            
+            <div class="flex-1 p-4 overflow-y-auto space-y-3.5">
+              <!-- Initial Description -->
+              <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+                <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                  <span class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-blue-600"></i> ${t.agency_name} (Requester)
+                  </span>
+                  <span class="text-[10px] font-mono">${new Date(t.created_at).toLocaleString()}</span>
+                </div>
+                <p class="text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">${t.description}</p>
+              </div>
+
+              <!-- Message Stream -->
+              ${messages.map(m => {
+                const isInternal = m.message_type === 'INTERNAL_NOTE';
+                const isSupplier = m.message_type === 'SUPPLIER_SIDE_THREAD';
+
+                if (isInternal && isAgencyRequester) return '';
+
+                let cardStyle = 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200';
+                let badge = 'Public Agency Reply';
+                let badgeStyle = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+
+                if (isInternal) {
+                  cardStyle = 'bg-amber-50/70 border-amber-200 text-amber-950 dark:bg-amber-950/20 dark:border-amber-500/30 dark:text-amber-100';
+                  badge = '🔒 Internal Note';
+                  badgeStyle = 'bg-amber-200/60 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 font-semibold';
+                } else if (isSupplier) {
+                  cardStyle = 'bg-indigo-50/70 border-indigo-200 text-indigo-950 dark:bg-indigo-950/30 dark:border-indigo-500/40 dark:text-indigo-100';
+                  badge = '✈️ Supplier Thread';
+                  badgeStyle = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300 font-bold';
+                }
+
+                return `
+                  <div class="p-3.5 rounded-lg border text-xs shadow-xs ${cardStyle}">
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-900 dark:text-white">${m.sender_name}</span>
+                        <span class="text-[10px] px-1.5 py-0.2 rounded ${badgeStyle}">${badge}</span>
+                      </div>
+                      <span class="text-[10px] text-slate-400 font-mono">${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                    </div>
+
+                    ${isSupplier && m.recipient_emails ? `
+                      <div class="text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-100/60 dark:bg-indigo-950/60 p-1.5 rounded mb-2 font-mono">
+                        Recipients: ${m.recipient_emails.join(', ')}
+                      </div>
+                    ` : ''}
+
+                    <p class="whitespace-pre-line leading-relaxed">${m.body}</p>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- Composer Box -->
+            <div class="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+              <div class="flex items-center gap-2 mb-2 text-xs">
+                <button onclick="setComposerTab('public')" class="px-2.5 py-1 rounded font-semibold ${state.composerTab === 'public' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400'}">
+                  Agency Reply
+                </button>
+                ${!isAgencyRequester ? `
+                  <button onclick="setComposerTab('internal')" class="px-2.5 py-1 rounded font-semibold ${state.composerTab === 'internal' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400'}">
+                    🔒 Internal Note
+                  </button>
+                  <button onclick="setComposerTab('supplier')" class="px-2.5 py-1 rounded font-semibold ${state.composerTab === 'supplier' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400'}">
+                    ✈️ Supplier Thread (Hotel/Airline)
+                  </button>
+                ` : ''}
+              </div>
+
+              <div class="space-y-2">
+                ${state.composerTab === 'supplier' ? `
+                  <input type="text" id="supplierEmailsInput" value="${supplierRecipients.length > 0 ? supplierRecipients.join(', ') : 'reservations@hotel.com, duty.manager@supplier.com'}" placeholder="Supplier recipient emails (comma-separated)..." class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-xs text-slate-800 dark:text-indigo-200 font-mono">
+                ` : ''}
+
+                <textarea id="composerText" rows="2" placeholder="${state.composerTab === 'public' ? 'Reply visible to travel agency...' : (state.composerTab === 'internal' ? 'Private note visible only to support agents...' : 'Message to hotel or airline reservation desk...')}" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md p-2 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] text-slate-500">Sender: ${state.currentUser ? state.currentUser.name : 'Support Agent'}</span>
+                  <button onclick="sendMessage('${t.id}')" class="px-3.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Send
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Travel Snapshot, Connected Cases & Timeline (Requirement 2 & 4) -->
+          <div class="w-full lg:w-72 bg-slate-50 dark:bg-slate-900/60 flex flex-col divide-y divide-slate-200 dark:divide-slate-800 overflow-y-auto">
+            
+            <!-- Travel Snapshot (Requirement 4) -->
+            <div class="p-3.5 space-y-2 text-xs">
+              <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Travel Urgency Snapshot</span>
+              <div class="space-y-1.5">
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Booking Ref:</span>
+                  <span class="font-mono font-bold text-blue-600 dark:text-blue-400">${t.tboh}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Agency:</span>
+                  <span class="font-semibold text-slate-900 dark:text-white">${t.agency_name}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Check-In Date:</span>
+                  <span class="font-mono text-slate-700 dark:text-slate-200 font-medium">${t.check_in_date ? new Date(t.check_in_date).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">LCD Deadline:</span>
+                  <span class="font-mono text-slate-700 dark:text-slate-200 font-medium">${t.lcd_date ? new Date(t.lcd_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONNECTED TICKETS (Requirement 2: Connect related tickets by TBOH, Agency, Category) -->
+            <div class="p-3.5 space-y-2 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Connected Cases (${linked.length})</span>
+                <span class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">Requirement 2</span>
+              </div>
+
+              ${linked.length === 0 ? `
+                <p class="text-[11px] text-slate-500">No prior cases found sharing this TBOH or agency history.</p>
+              ` : `
+                <div class="space-y-2">
+                  ${linked.map(lk => `
+                    <div onclick="selectTicket('${lk.id}')" class="p-2.5 rounded-lg bg-white dark:bg-slate-800/80 hover:border-blue-400 border border-slate-200 dark:border-slate-700/80 cursor-pointer transition shadow-xs">
+                      <div class="flex items-center justify-between text-[10px] mb-1">
+                        <span class="font-bold text-slate-900 dark:text-white font-mono">${lk.id}</span>
+                        <span class="text-blue-600 dark:text-blue-400 font-bold">${lk.link_reason}</span>
+                      </div>
+                      <p class="text-[11px] text-slate-700 dark:text-slate-300 font-medium line-clamp-1">${lk.title}</p>
+                      <div class="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                        <span>Status: <strong class="text-slate-700 dark:text-slate-300">${lk.status}</strong></span>
+                        <span>${lk.assigned_name || 'Unassigned'}</span>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+
+            <!-- Activity Timeline -->
+            <div class="p-3.5 space-y-2 text-xs">
+              <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Activity Timeline</span>
+              <div class="space-y-2 text-[11px]">
+                ${timeline.slice(0, 5).map(evt => `
+                  <div class="border-l-2 border-slate-300 dark:border-slate-700 pl-2.5 py-0.5 space-y-0.5">
+                    <div class="flex items-center justify-between text-[10px] text-slate-500">
+                      <span class="font-semibold text-slate-700 dark:text-slate-300">${evt.actor_name} (${evt.actor_role})</span>
+                      <span class="font-mono text-slate-400">${new Date(evt.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <p class="text-slate-600 dark:text-slate-400 text-[11px] leading-tight">${evt.summary}</p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      lucide.createIcons();
+    }
+
+    function setComposerTab(tab) {
+      state.composerTab = tab;
+      const t = state.tickets.find(x => x.id === state.selectedTicketId);
+      if (t) selectTicket(t.id);
+    }
+
+    async function sendMessage(ticketId) {
+      const text = document.getElementById('composerText').value.trim();
+      if (!text) return;
+
+      let msgType = 'PUBLIC';
+      let recEmails = null;
+
+      if (state.composerTab === 'internal') {
+        msgType = 'INTERNAL_NOTE';
+      } else if (state.composerTab === 'supplier') {
+        msgType = 'SUPPLIER_SIDE_THREAD';
+        const rawEmails = document.getElementById('supplierEmailsInput')?.value || '';
+        recEmails = rawEmails.split(',').map(e => e.trim()).filter(Boolean);
+      }
+
+      await fetch(`/api/tickets/${ticketId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message_type: msgType,
+          body: text,
+          sender_type: state.currentUser ? state.currentUser.role : 'Support Agent',
+          sender_name: state.currentUser ? state.currentUser.name : 'Priya Sharma',
+          recipient_emails: recEmails
+        })
+      });
+
+      document.getElementById('composerText').value = '';
+      showToast("Message recorded successfully!");
+      selectTicket(ticketId);
+    }
+
+    async function reassignTicket(ticketId, newAgentId) {
+      if (!newAgentId) return;
+      await fetch(`/api/tickets/${ticketId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: newAgentId,
+          actor_name: state.currentUser ? state.currentUser.name : 'Support Agent',
+          actor_role: state.currentUser ? state.currentUser.role : 'Support Agent'
+        })
+      });
+      showToast("Ticket transferred! Supplier recipients preserved.");
+      await loadTickets();
+      selectTicket(ticketId);
+    }
+
+    async function changeStatus(ticketId, newStatus) {
+      await fetch(`/api/tickets/${ticketId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          actor_name: state.currentUser ? state.currentUser.name : 'Support Agent',
+          actor_role: state.currentUser ? state.currentUser.role : 'Support Agent'
+        })
+      });
+      showToast(`Status updated to ${newStatus}`);
+      await loadStats();
+      await loadTickets();
+      selectTicket(ticketId);
+    }
+
+    // Requirement 5: Escalate Modal Fix
+    function openEscalateModal(ticketId) {
+      if (ticketId) state.selectedTicketId = ticketId;
+      document.getElementById('escalateReason').value = '';
+      document.getElementById('escalateModal').classList.remove('hidden');
+    }
+
+    function closeEscalateModal() {
+      document.getElementById('escalateModal').classList.add('hidden');
+    }
+
+    async function submitEscalation(event) {
+      event.preventDefault();
+      const reason = document.getElementById('escalateReason').value.trim();
+      const escalateTo = document.getElementById('escalateToSelect').value;
+
+      if (!state.selectedTicketId) {
+        alert("Please select a ticket to escalate.");
+        return;
+      }
+      if (!reason) {
+        alert("Please provide a reason for the escalation.");
+        return;
+      }
+
+      const submitBtn = document.getElementById('escalateSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Escalating...";
+
+      try {
+        const res = await fetch(`/api/tickets/${state.selectedTicketId}/escalate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reason: reason,
+            escalate_to_agent_id: escalateTo,
+            actor_name: state.currentUser ? state.currentUser.name : 'Support Agent',
+            actor_role: state.currentUser ? state.currentUser.role : 'Support Agent'
+          })
+        });
+
+        const data = await res.json();
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Confirm Escalation";
+
+        if (!res.ok) {
+          alert(data.error || "Escalation failed.");
+          return;
+        }
+
+        closeEscalateModal();
+        showToast("Case escalated directly to Escalation Manager Vikram Malhotra!");
+        await loadStats();
+        await loadTickets();
+        selectTicket(state.selectedTicketId);
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Confirm Escalation";
+        alert("Escalation error: " + err.message);
+      }
+    }
+
+    // Requirement 1: Create / Book Ticket Fix
+    function openNewTicketModal() {
+      document.getElementById('newTicketModal').classList.remove('hidden');
+    }
+
+    function closeNewTicketModal() {
+      document.getElementById('newTicketModal').classList.add('hidden');
+    }
+
+    async function submitNewTicket(event) {
+      event.preventDefault();
+      const agency_id = document.getElementById('createAgency').value;
+      const tboh = document.getElementById('createTboh').value.trim();
+      const title = document.getElementById('createTitle').value.trim();
+      const description = document.getElementById('createDescription').value.trim();
+      const category = document.getElementById('createCategory').value;
+      const check_in_date = document.getElementById('createCheckIn').value;
+      const lcd_date = document.getElementById('createLCD').value;
+      const priority = document.querySelector('input[name="createPriority"]:checked')?.value || 'P2-High';
+
+      if (!title) {
+        alert("Please enter a case title.");
+        return;
+      }
+      if (!tboh) {
+        alert("Please enter a TBOH booking reference.");
+        return;
+      }
+
+      const submitBtn = document.getElementById('createSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Booking & Routing...";
+
+      try {
+        const res = await fetch('/api/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agency_id,
+            tboh,
+            title,
+            description,
+            category,
+            priority,
+            check_in_date,
+            lcd_date,
+            creator_name: state.currentUser ? state.currentUser.name : 'Rajesh Kumar',
+            creator_role: state.currentUser ? state.currentUser.role : 'Agency'
+          })
+        });
+
+        const data = await res.json();
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Create & Auto-Assign Case";
+
+        if (!res.ok) {
+          alert(data.error || "Failed to create ticket.");
+          return;
+        }
+
+        closeNewTicketModal();
+        document.getElementById('newTicketForm').reset();
+        document.getElementById('createTboh').value = 'TBOH-90241';
+        
+        showToast(`Ticket ${data.ticket_id} created & auto-assigned to ${data.assigned_name || 'Triage'}!`);
+        
+        // Switch to all queue to ensure new ticket is visible
+        state.currentQueueView = 'all';
+        showMainTab('workbench');
+        await loadStats();
+        await loadTickets();
+        selectTicket(data.ticket_id);
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Create & Auto-Assign Case";
+        alert("Network error creating ticket: " + err.message);
+      }
+    }
+
+    function setQueueView(viewName) {
+      state.currentQueueView = viewName;
+      document.querySelectorAll('aside nav button').forEach(b => {
+        b.classList.remove('bg-blue-50', 'text-blue-700', 'font-bold', 'dark:bg-slate-800', 'dark:text-white');
+      });
+      const activeBtn = document.getElementById(`nav-${viewName}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-blue-50', 'text-blue-700', 'font-bold', 'dark:bg-slate-800', 'dark:text-white');
+      }
+
+      showMainTab('workbench');
+      loadTickets();
+    }
+
+    function showMainTab(tabName) {
+      document.getElementById('tab-workbench').classList.add('hidden');
+      document.getElementById('tab-dashboard').classList.add('hidden');
+
+      if (tabName === 'workbench') {
+        document.getElementById('tab-workbench').classList.remove('hidden');
+      } else if (tabName === 'dashboard') {
+        document.getElementById('tab-dashboard').classList.remove('hidden');
+        loadRecurringIssues();
+      }
+    }
+
+    async function loadRecurringIssues() {
+      try {
+        const res = await fetch('/api/stats/recurring-issues');
+        const data = await res.json();
+        const container = document.getElementById('recurringIssuesContainer');
+
+        container.innerHTML = data.recurring_issues.map(item => {
+          const breachRate = Math.round((item.breached / Math.max(1, item.count)) * 100);
+          return `
+            <div class="p-4 hover:bg-slate-50 dark:hover:bg-slate-850/60 transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-slate-900 dark:text-white">${item.category}</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold">${item.count} cases</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${breachRate > 20 ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">${breachRate}% SLA breach rate</span>
+                </div>
+                <div class="text-xs text-slate-500">
+                  Sample cases: ${(item.sample_tickets || []).map(s => `<span class="underline cursor-pointer mr-2 hover:text-blue-600" onclick="showMainTab('workbench'); selectTicket('${s.id}')">${s.id} (${s.priority})</span>`).join('')}
+                </div>
+              </div>
+              <div class="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                At-Risk: <strong class="text-amber-600 font-bold">${item.at_risk}</strong> | Breached: <strong class="text-red-600 font-bold">${item.breached}</strong>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        lucide.createIcons();
+      } catch (e) {
+        console.error("Dashboard error:", e);
+      }
+    }
+
+    async function resetDemoData() {
+      if (!confirm("Reset TripLink demo data to initial clean state?")) return;
+      await fetch('/api/demo/reset', { method: 'POST' });
+      showToast("Database reset to clean demo seed state.");
+      await loadStats();
+      await loadTickets();
+      selectTicket('TKT-1003');
+    }
+
+    function debounceSearch() {
+      clearTimeout(state.searchTimer);
+      state.searchTimer = setTimeout(() => { loadTickets(); }, 250);
+    }
+
+    // Interactive Demo Tour
+    function runDemoTour(step) {
+      showMainTab('workbench');
+      if (step === 'linkage') {
+        setQueueView('tboh_demo');
+        selectTicket('TKT-1003');
+        alert("DEMO 1: CONNECTED CASES (Requirement 2)\n• Agency opened a 3rd ticket about the same Dubai refund (TBOH-90241).\n• TripLink immediately connects and displays the 2 prior cases (TKT-1001 & TKT-1002) on the right panel!");
+      } else if (step === 'routing') {
+        setQueueView('all');
+        selectTicket('TKT-1004');
+        alert("DEMO 2: INTELLIGENT ROUTING (Requirement 3)\n• Urgent check-in crisis at Atlantis front desk.\n• Auto-assigned to Tariq Al-Mansoor: Middle East specialist, Tier-2, available capacity.\n• Note the explainable audit banner!");
+      } else if (step === 'sla') {
+        setQueueView('all');
+        selectTicket('TKT-1005');
+        alert("DEMO 3: TRAVEL-AWARE SLA (Requirement 4)\n• LCD (Last Cancel Deadline) expires in 1 hour!\n• SLA compressed dynamically to urgent countdown (Pulsing At-Risk badge).");
+      } else if (step === 'supplier') {
+        setQueueView('all');
+        selectTicket('TKT-1007');
+        alert("DEMO 4: SUPPLIER THREAD (Requirement 6)\n• Active thread with hotel reservations (reservations@atlantisthepalm.com).\n• Ticket was transferred to Priya, and the supplier recipient list stayed 100% intact!");
+      } else if (step === 'escalate') {
+        setQueueView('all');
+        selectTicket('TKT-1008');
+        alert("DEMO 5: ESCALATION MANAGER (Requirement 5)\n• Commercial rate dispute directly escalated to Escalation Manager Vikram Malhotra in dedicated priority queue.");
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
